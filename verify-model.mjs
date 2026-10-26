@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {panelsFor,basisAt,pinBasis,constrainPins,heightAt,rigidPose} from './dist/paper-model.js';
+const folds=[{a:{x:.1,y:.4},b:{x:.9,y:.4},sign:1},{a:{x:.35,y:.05},b:{x:.6,y:.95},sign:-1},{a:{x:.1,y:.85},b:{x:.9,y:.1},sign:1}];
+const panels=panelsFor(folds),pins=[{x:.1,y:.1},{x:.9,y:.1}],rows=pinBasis(pins,folds,3.5);
+let area=0;
+for(let t=0;t<50;t++){const c=constrainPins([0,0,0,...folds.map((f,i)=>f.sign*Math.sin(t*.13+i)*.3)],rows);for(const p of pins)assert.ok(Math.abs(heightAt(basisAt(p,folds,3.5),c))<1e-9,'fixed points must stay fixed');for(const poly of panels){const p=poly.map(q=>[q.x,q.y,heightAt(basisAt(q,folds,3.5),c)]),a=p[0],b=p[1],d=p[2],u=b.map((v,i)=>v-a[i]),v=d.map((v,i)=>v-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];for(const q of p)assert.ok(Math.abs(n.reduce((s,x,i)=>s+x*(q[i]-a[i]),0))<1e-9,'every face must remain planar throughout animation');}}
+for(const p of panels){let a=0;for(let i=0;i<p.length;i++){const x=p[i],y=p[(i+1)%p.length];a+=x.x*y.y-y.x*x.y;}area+=Math.abs(a)/2;}assert.ok(Math.abs(area-1)<1e-9,'panels must cover the original sheet');
+assert.equal(panelsFor([]).length,1);assert.deepEqual(constrainPins([0,0,0],pinBasis([],[],3.5)),[0,0,0]);console.log('PASS: intersecting folds, flat faces over 50 poses, fixed points, full sheet coverage, uncreased sheet.');
+const accordion=[{a:{x:0,y:.35},b:{x:1,y:.35}},{a:{x:0,y:.7},b:{x:1,y:.7}},{a:{x:.5,y:0},b:{x:.5,y:1}}],fixed=[{x:.5,y:.05}],regions=panelsFor(accordion);
+for(let t=0;t<50;t++){const angles=t<25?[Math.sin(t*.12)*1.3,-Math.sin(t*.12)*.8,0]:[0,0,Math.sin(t*.12)*1.3];for(const poly of regions){const q=rigidPose(poly,accordion,angles,2.8,3.5,fixed);for(let i=0;i<poly.length;i++)for(let j=i+1;j<poly.length;j++){const expected=Math.hypot((poly[i].x-poly[j].x)*2.8,(poly[i].y-poly[j].y)*3.5),actual=Math.hypot(...q[i].map((x,k)=>x-q[j][k]));assert.ok(Math.abs(expected-actual)<1e-8,'folding must preserve all panel distances at large angles');}}const q=rigidPose(fixed,accordion,angles,2.8,3.5,fixed)[0];assert.ok(Math.abs(q[0])<1e-8&&Math.abs(q[1]-1.575)<1e-8&&Math.abs(q[2])<1e-8);}
+console.log('PASS: rigid panel lengths and fixed points through 50 large-angle accordion and crossing-direction poses.');
